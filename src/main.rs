@@ -9,36 +9,52 @@ fn main() {
     let nheight = (height as u32 * 2) - 6;
     let nwidth = width as u32 - 4;
 
-    println!("\nProcessing image...\x1b[2A\x1b[?25l");
-
     let raw_img = image::open(&args[1]).unwrap();
     let img = raw_img.resize(nwidth, nheight, FilterType::Triangle);
 
     let ave_img = raw_img.resize_exact(1, 1, FilterType::Triangle);
     let ave_pixel = ave_img.pixels().last().unwrap();
-    let ave_rgb_str = format!("{};{};{}", ave_pixel.2[0], ave_pixel.2[1], ave_pixel.2[2]);
+
+    let ave_red = ave_pixel.2[0] as u32;
+    let ave_green = ave_pixel.2[1] as u32;
+    let ave_blue = ave_pixel.2[2] as u32;
+
+    let ave_color = ave_red + ave_green + ave_blue;
+    let ave_color_str = format!("\x1b[38;2;{};{};{}m", ave_red, ave_green, ave_blue);
 
     let charset = String::from("   ...,,;:clodxkO0KXNWM");
 
-    print!("\x1b[1;38;2;{}m┌", ave_rgb_str);
+    print!("\x1b[1m{}┌", ave_color_str);
     for _ in 0..img.width() + 2 { print!("─"); }
-    println!("┐\x1b[0m");
+    println!("┐");
+
+    let mut prev_color = ave_color;
 
     for pixel in img.pixels() {
         if pixel.1 % 2 != 0 { continue; }
-        if pixel.0 == 0 { print!("\x1b[1;38;2;{}m│ \x1b[0m", ave_rgb_str); }
+        if pixel.0 == 0 { print!("│ "); }
 
         let luma = pixel.2.to_luma().0[0] as f32;
         let charset_max = (charset.len() - 1) as f32;
         let char = ((luma / 255.0) * charset_max).round() as usize;
 
-        let rgb_str = format!("{};{};{}", pixel.2[0], pixel.2[1], pixel.2[2]);
-        print!("\x1b[1;38;2;{}m{}\x1b[0m", rgb_str, &charset[char..char + 1]);
+        let red = pixel.2[0] as u32;
+        let green = pixel.2[1] as u32;
+        let blue = pixel.2[2] as u32;
 
-        if pixel.0 == img.width() - 1 { print!("\x1b[1;38;2;{}m │\x1b[0m\n", ave_rgb_str); }
+        let color = red + green + blue;
+        if color != prev_color { print!("\x1b[38;2;{};{};{}m", red, green, blue); }
+
+        print!("{}", &charset[char..char + 1]);
+        prev_color = color;
+
+        if pixel.0 == img.width() - 1 {
+            println!("{} │", ave_color_str);
+            prev_color = ave_color;
+        }
     }
 
-    print!("\x1b[1;38;2;{}m└", ave_rgb_str);
+    print!("└");
     for _ in 0..img.width() + 2 { print!("─"); }
-    println!("┘\x1b[0m\x1b[?25h");
+    println!("┘\x1b[0m");
 }
