@@ -1,5 +1,5 @@
 use image::{GenericImageView, Pixel, imageops::FilterType};
-use std::env;
+use std::{env, fs, fs::File, io::Write};
 use termion;
 
 fn main() {
@@ -23,16 +23,17 @@ fn main() {
     let ave_color_str = format!("\x1b[38;2;{};{};{}m", ave_red, ave_green, ave_blue);
 
     let charset = String::from("   ...,,;:clodxkO0KXNWM");
+    let mut file = File::create(&args[2]).unwrap();
 
-    print!("\x1b[1m{}┌", ave_color_str);
-    for _ in 0..img.width() + 2 { print!("─"); }
-    println!("┐");
+    write!(&mut file, "\x1b[1m{}┌", ave_color_str).unwrap();
+    for _ in 0..img.width() + 2 { write!(&mut file, "─").unwrap(); }
+    writeln!(&mut file, "┐").unwrap();
 
     let mut prev_color = ave_color;
 
     for pixel in img.pixels() {
         if pixel.1 % 2 != 0 { continue; }
-        if pixel.0 == 0 { print!("│ "); }
+        if pixel.0 == 0 { write!(&mut file, "│ ").unwrap(); }
 
         let luma = pixel.2.to_luma().0[0] as f32;
         let charset_max = (charset.len() - 1) as f32;
@@ -43,18 +44,22 @@ fn main() {
         let blue = pixel.2[2] as u32;
 
         let color = red + green + blue;
-        if color != prev_color { print!("\x1b[38;2;{};{};{}m", red, green, blue); }
+        if color != prev_color {
+            write!(&mut file, "\x1b[38;2;{};{};{}m", red, green, blue).unwrap();
+        }
 
-        print!("{}", &charset[char..char + 1]);
+        write!(&mut file, "{}", &charset[char..char + 1]).unwrap();
         prev_color = color;
 
         if pixel.0 == img.width() - 1 {
-            println!("{} │", ave_color_str);
+            writeln!(&mut file, "{} │", ave_color_str).unwrap();
             prev_color = ave_color;
         }
     }
 
-    print!("└");
-    for _ in 0..img.width() + 2 { print!("─"); }
-    println!("┘\x1b[0m");
+    write!(&mut file, "└").unwrap();
+    for _ in 0..img.width() + 2 { write!(&mut file, "─").unwrap(); }
+    writeln!(&mut file, "┘\x1b[0m").unwrap();
+
+    print!("{}", fs::read_to_string(&args[2]).unwrap());
 }
