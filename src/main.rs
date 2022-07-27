@@ -11,7 +11,7 @@ fn main() {
 
     for i in 0..args.len() {
         let arg = &args[i];
-        if arg.starts_with('-') == false { continue; }
+        if !arg.starts_with('-') { continue; }
 
         match arg.chars().last().unwrap() {
             'c' => { add_color = true; },
@@ -39,13 +39,14 @@ fn main() {
     let ave_blue = ave_pixel.2[2] as u32;
 
     let ave_color = ave_red + ave_green + ave_blue;
-    let mut ave_color_str = format!("\x1b[38;2;{};{};{}m", ave_red, ave_green, ave_blue);
-    if add_color == false { ave_color_str = String::from("\x1b[39m"); }
+    let ave_color_str = format!("\x1b[38;2;{};{};{}m", ave_red, ave_green, ave_blue);
 
     let charset = String::from("   ...,,;:clodxkO0KXNWM");
-    let mut string = String::new();
 
-    string += &format!("\x1b[1m{}┌", ave_color_str);
+    let mut string = String::from("\x1b[1m");
+    if add_color { string += &ave_color_str; }
+
+    string += "┌";
     for _ in 0..img.width() + 2 { string += "─"; }
     string += "┐\n";
 
@@ -64,7 +65,7 @@ fn main() {
         let blue = pixel.2[2] as u32;
 
         let color = red + green + blue;
-        if add_color == true && color != prev_color {
+        if add_color && color != prev_color {
             string += &format!("\x1b[38;2;{};{};{}m", red, green, blue);
         }
 
@@ -72,7 +73,8 @@ fn main() {
         prev_color = color;
 
         if pixel.0 == img.width() - 1 {
-            string += &format!("{} │\n", ave_color_str);
+            if add_color { string += &ave_color_str; }
+            string += " │\n";
             prev_color = ave_color;
         }
     }
@@ -83,7 +85,7 @@ fn main() {
 
     print!("{}", string);
 
-    if output_file == true {
+    if output_file {
         let mut file = File::create(path).unwrap();
         write!(&mut file, "{}", string).unwrap();
     }
