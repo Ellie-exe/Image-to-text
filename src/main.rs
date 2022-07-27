@@ -1,9 +1,28 @@
 use image::{GenericImageView, Pixel, imageops::FilterType};
-use std::{env, fs, fs::File, io::Write};
+use std::{env, fs::File, io::Write};
 use termion;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+
+    let mut add_color = false;
+    let mut output_file = false;
+    let mut path = "";
+
+    for i in 0..args.len() {
+        let arg = &args[i];
+        if arg.starts_with('-') == false { continue; }
+
+        match arg.chars().last().unwrap() {
+            'c' => { add_color = true; },
+            'o' => {
+                output_file = true;
+                path = &args[i + 1];
+            },
+
+            _ => {}
+        }
+    }
 
     let (width, height) = termion::terminal_size().unwrap();
     let nheight = (height as u32 * 2) - 6;
@@ -20,20 +39,21 @@ fn main() {
     let ave_blue = ave_pixel.2[2] as u32;
 
     let ave_color = ave_red + ave_green + ave_blue;
-    let ave_color_str = format!("\x1b[38;2;{};{};{}m", ave_red, ave_green, ave_blue);
+    let mut ave_color_str = format!("\x1b[38;2;{};{};{}m", ave_red, ave_green, ave_blue);
+    if add_color == false { ave_color_str = String::from("\x1b[39m"); }
 
     let charset = String::from("   ...,,;:clodxkO0KXNWM");
-    let mut file = File::create(&args[2]).unwrap();
+    let mut string = String::new();
 
-    write!(&mut file, "\x1b[1m{}┌", ave_color_str).unwrap();
-    for _ in 0..img.width() + 2 { write!(&mut file, "─").unwrap(); }
-    writeln!(&mut file, "┐").unwrap();
+    string += &format!("\x1b[1m{}┌", ave_color_str);
+    for _ in 0..img.width() + 2 { string += "─"; }
+    string += "┐\n";
 
     let mut prev_color = ave_color;
 
     for pixel in img.pixels() {
         if pixel.1 % 2 != 0 { continue; }
-        if pixel.0 == 0 { write!(&mut file, "│ ").unwrap(); }
+        if pixel.0 == 0 { string += "│ "; }
 
         let luma = pixel.2.to_luma().0[0] as f32;
         let charset_max = (charset.len() - 1) as f32;
@@ -44,22 +64,27 @@ fn main() {
         let blue = pixel.2[2] as u32;
 
         let color = red + green + blue;
-        if color != prev_color {
-            write!(&mut file, "\x1b[38;2;{};{};{}m", red, green, blue).unwrap();
+        if add_color == true && color != prev_color {
+            string += &format!("\x1b[38;2;{};{};{}m", red, green, blue);
         }
 
-        write!(&mut file, "{}", &charset[char..char + 1]).unwrap();
+        string += &format!("{}", &charset[char..char + 1]);
         prev_color = color;
 
         if pixel.0 == img.width() - 1 {
-            writeln!(&mut file, "{} │", ave_color_str).unwrap();
+            string += &format!("{} │\n", ave_color_str);
             prev_color = ave_color;
         }
     }
 
-    write!(&mut file, "└").unwrap();
-    for _ in 0..img.width() + 2 { write!(&mut file, "─").unwrap(); }
-    writeln!(&mut file, "┘\x1b[0m").unwrap();
+    string += "└";
+    for _ in 0..img.width() + 2 { string += "─"; }
+    string += "┘\x1b[0m\n";
 
-    print!("{}", fs::read_to_string(&args[2]).unwrap());
+    print!("{}", string);
+
+    if output_file == true {
+        let mut file = File::create(path).unwrap();
+        write!(&mut file, "{}", string).unwrap();
+    }
 }
